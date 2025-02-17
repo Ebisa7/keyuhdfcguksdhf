@@ -1,62 +1,95 @@
 import { useEffect } from "react";
 
-const MintETNOGPass = () => {
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const setThemeClass = () => {
-        document.documentElement.className = window.Telegram.WebApp.colorScheme;
+declare global {
+  interface Window {
+    Telegram: {
+      WebApp: {
+        colorScheme: string;
+        onEvent: (event: string, callback: () => void) => void;
+        setEmojiStatus: (
+          customEmojiId: string,
+          options?: { duration?: number },
+          callback?: (result: boolean) => void
+        ) => void;
+        requestEmojiStatusAccess: (callback: (allowed: boolean) => void) => void;
+        showAlert: (message: string) => void;
       };
-      window.Telegram.WebApp.onEvent("themeChanged", setThemeClass);
-      setThemeClass();
-    }
-  }, []);
+    };
+  }
+}
 
-  const setEmojiStatus = (customEmojiId: string, duration?: number) => {
-    if (!window.Telegram?.WebApp) return;
-    
-    window.Telegram.WebApp.setEmojiStatus(
-      customEmojiId,
-      duration ? { duration } : {},
-      (result: boolean) => {
-        const statusPopup = document.getElementById("status");
-        if (!statusPopup) return;
-        
+const DemoApp = {
+  emojiStatusInit: function () {
+    window.Telegram?.WebApp.onEvent("emojiStatusFailed", function (params: any) {
+      DemoApp.showAlert("emojiStatusFailed: " + params.error);
+    });
+  },
+  setEmojiStatus: function (el: HTMLAnchorElement, customEmojiId: string, duration?: number) {
+    window.Telegram?.WebApp.setEmojiStatus(customEmojiId, duration ? { duration } : {}, function (result) {
+      const statusPopup = document.getElementById("status");
+      if (statusPopup) {
         statusPopup.innerHTML = "";
         const span = document.createElement("span");
         span.textContent = result ? "(status set!)" : "(status NOT set)";
         span.className = result ? "ok" : "err";
-        
         statusPopup.appendChild(span);
-        statusPopup.style.display = "block";
+        statusPopup.style.display = "block"; // Show popup
         setTimeout(() => {
-          statusPopup.style.display = "none";
+          statusPopup.style.display = "none"; // Hide after 3 seconds
         }, 3000);
       }
-    );
-  };
+    });
+  },
+  requestEmojiStatusAccess: function (el: HTMLAnchorElement) {
+    window.Telegram?.WebApp.requestEmojiStatusAccess(function (allowed) {
+      const span = el.nextElementSibling as HTMLSpanElement;
+      if (span) {
+        span.textContent = allowed ? "(Access granted)" : "(User declined this request)";
+        span.className = allowed ? "ok" : "err";
+      }
+    });
+  },
+  showAlert: function (message: string) {
+    window.Telegram?.WebApp.showAlert(message);
+  },
+};
+
+const App = () => {
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const setThemeClass = () => {
+        document.documentElement.className = window.Telegram!.WebApp.colorScheme;
+      };
+      window.Telegram!.WebApp.onEvent("themeChanged", setThemeClass);
+      setThemeClass();
+    }
+    DemoApp.emojiStatusInit();
+  }, []);
 
   return (
-    <div className="flex justify-center items-center h-screen bg-[#06110C]">
-      <div className="flex items-center p-4 rounded-lg w-[350px] text-white font-sans">
-        <div className="w-11 h-11 bg-[#313235] text-white text-lg font-bold rounded-full flex justify-center items-center">
-          <a href="https://imgbb.com/">
-            <img src="etnicon.png" alt="done" className="w-5 h-auto" />
-          </a>
-        </div>
-        <div className="flex-grow ml-3">
-          <h3 className="m-0 text-lg font-normal">Set Emoji status</h3>
-          <p className="m-1 text-sm text-gray-400">+500 Coins</p>
-        </div>
-        <button
-          className="bg-white/20 border-none text-white py-2 px-4 rounded-full text-sm cursor-pointer hover:bg-white/30"
-          onClick={() => setEmojiStatus("5845951029639648949")}
-        >
-          Start
-        </button>
-        <p id="status" className="fixed top-[-50px] left-1/2 transform -translate-x-1/2 bg-black/70 text-white p-4 rounded-lg text-sm font-bold text-center shadow-lg z-50 animate-slideDown animate-slideUp"></p>
+    <div className="container">
+      <div className="h1">
+        <a href="https://imgbb.com/">
+          <img src="etnicon.png" alt="done" border={0} />
+        </a>
       </div>
+      <div className="info">
+        <h3>Set Emoji status</h3>
+        <p>+500 Coins</p>
+      </div>
+      <a
+        href="#"
+        className="start-btn"
+        onClick={(e) => {
+          e.preventDefault();
+          DemoApp.setEmojiStatus(e.currentTarget as HTMLAnchorElement, "5845951029639648949");
+        }}
+      >
+        Start
+      </a>
+      <p id="status"></p> {/* Popup element */}
     </div>
   );
 };
 
-export default MintETNOGPass;
+export default App;
